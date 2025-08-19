@@ -10,124 +10,214 @@ export class World {
         this.playerSpawnX = 50;
         this.playerSpawnY = 480;
         this.imageLoaded = false;
-        this.generateWorldFromDescription();
-        this.generateEssences();
-        this.imageLoaded = true;
+        this.loadWorldFromImage();
+    }
+    
+    async loadWorldFromImage() {
+        try {
+            console.log('🗺️ Carregando mapa do GitHub...');
+            
+            // Criar canvas temporário para ler pixels da imagem
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Carregar a imagem do mapa diretamente do GitHub
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            
+            return new Promise((resolve, reject) => {
+                img.onload = () => {
+                    console.log(`📐 Imagem carregada: ${img.width}x${img.height}`);
+                    
+                    // Definir tamanho do canvas baseado na imagem
+                    tempCanvas.width = img.width;
+                    tempCanvas.height = img.height;
+                    
+                    // Desenhar imagem no canvas temporário
+                    tempCtx.drawImage(img, 0, 0);
+                    
+                    // Ler todos os pixels
+                    const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+                    const pixels = imageData.data;
+                    
+                    // Processar pixels e gerar mundo
+                    this.generateWorldFromPixels(pixels, img.width, img.height);
+                    this.generateEssences();
+                    
+                    this.imageLoaded = true;
+                    console.log(`✅ Mundo gerado: ${this.platforms.length} plataformas, spawn em (${this.playerSpawnX}, ${this.playerSpawnY})`);
+                    resolve();
+                };
+                
+                img.onerror = (error) => {
+                    console.log('❌ Erro ao carregar imagem, usando fallback');
+                    this.generateWorldFromDescription();
+                    this.generateEssences();
+                    this.imageLoaded = true;
+                    resolve();
+                };
+                
+                // URL da sua imagem no GitHub
+                img.src = 'https://raw.githubusercontent.com/klaus-deor/lumina-metroidvania/main/assets/maps/cenário%201.png';
+            });
+            
+        } catch (error) {
+            console.log('📍 Erro no carregamento, usando mundo de fallback');
+            this.generateWorldFromDescription();
+            this.generateEssences();
+            this.imageLoaded = true;
+        }
+    }
+    
+    generateWorldFromPixels(pixels, width, height) {
+        const platforms = [];
+        const scale = 3; // Escalar imagem para mundo maior
+        let playerFound = false;
+        
+        console.log('🔍 Processando pixels...');
+        
+        // Percorrer pixels linha por linha para formar plataformas horizontais
+        for (let y = 0; y < height; y++) {
+            let currentPlatform = null;
+            
+            for (let x = 0; x < width; x++) {
+                const pixelIndex = (y * width + x) * 4;
+                const r = pixels[pixelIndex];
+                const g = pixels[pixelIndex + 1];
+                const b = pixels[pixelIndex + 2];
+                
+                // Verificar se é pixel cinza (plataforma)
+                // Aceitar uma faixa de cinza para ser mais tolerante
+                const isGray = (r >= 100 && r <= 180) && 
+                               (g >= 100 && g <= 180) && 
+                               (b >= 100 && b <= 180) &&
+                               Math.abs(r - g) < 30 && Math.abs(r - b) < 30 && Math.abs(g - b) < 30;
+                
+                if (isGray) {
+                    if (!currentPlatform) {
+                        // Iniciar nova plataforma
+                        currentPlatform = {
+                            x: x * scale,
+                            y: y * scale,
+                            width: scale,
+                            height: scale
+                        };
+                    } else {
+                        // Estender plataforma horizontal
+                        currentPlatform.width += scale;
+                    }
+                } else {
+                    if (currentPlatform) {
+                        // Finalizar plataforma atual
+                        platforms.push(currentPlatform);
+                        currentPlatform = null;
+                    }
+                }
+                
+                // Verificar se é posição do player (pixel branco)
+                const isWhite = r > 200 && g > 200 && b > 200;
+                if (isWhite && !playerFound) {
+                    this.playerSpawnX = x * scale;
+                    this.playerSpawnY = y * scale;
+                    playerFound = true;
+                    console.log(`👤 Player spawn encontrado em pixel (${x}, ${y}) = mundo (${this.playerSpawnX}, ${this.playerSpawnY})`);
+                }
+            }
+            
+            // Finalizar plataforma se chegou no final da linha
+            if (currentPlatform) {
+                platforms.push(currentPlatform);
+            }
+        }
+        
+        // Otimizar plataformas - juntar plataformas verticalmente adjacentes
+        const optimizedPlatforms = this.optimizePlatforms(platforms);
+        
+        this.platforms = optimizedPlatforms;
+        
+        // Ajustar dimensões do mundo baseado na imagem
+        CONFIG.WORLD.WIDTH = width * scale;
+        CONFIG.WORLD.HEIGHT = height * scale;
+        
+        console.log(`🏗️ ${platforms.length} plataformas brutas → ${optimizedPlatforms.length} otimizadas`);
+        console.log(`🌍 Mundo ajustado para ${CONFIG.WORLD.WIDTH}x${CONFIG.WORLD.HEIGHT}`);
+    }
+    
+    optimizePlatforms(platforms) {
+        // Agrupar plataformas que estão na mesma posição X e têm mesma largura
+        const optimized = [];
+        const processed = new Set();
+        
+        platforms.forEach((platform, index) => {
+            if (processed.has(index)) return;
+            
+            let combined = { ...platform };
+            processed.add(index);
+            
+            // Procurar plataformas que podem ser combinadas verticalmente
+            for (let i = index + 1; i < platforms.length; i++) {
+                if (processed.has(i)) continue;
+                
+                const other = platforms[i];
+                
+                // Podem ser combinadas se:
+                // 1. Mesma posição X e largura
+                // 2. Estão verticalmente adjacentes
+                if (other.x === combined.x && 
+                    other.width === combined.width &&
+                    other.y === combined.y + combined.height) {
+                    
+                    // Combinar verticalmente
+                    combined.height += other.height;
+                    processed.add(i);
+                    i--; // Verificar novamente a partir da mesma posição
+                }
+            }
+            
+            optimized.push(combined);
+        });
+        
+        return optimized;
     }
     
     generateWorldFromDescription() {
-        // Baseado exatamente na imagem que você mostrou
-        // Recreando pixel por pixel a estrutura que vejo
-        
+        // Fallback caso a imagem não carregue
+        console.log('🔄 Usando mundo de fallback');
         this.platforms = [
-            // === CHÃO BASE (parte inferior) ===
             { x: 0, y: 500, width: 800, height: 20 },
-            
-            // === ESTRUTURA ESQUERDA ===
-            // Plataformas pequenas escalonadas
-            { x: 20, y: 460, width: 40, height: 8 },
-            { x: 80, y: 440, width: 40, height: 8 },
-            { x: 40, y: 420, width: 40, height: 8 },
-            { x: 100, y: 400, width: 40, height: 8 },
-            { x: 60, y: 380, width: 40, height: 8 },
-            { x: 120, y: 360, width: 40, height: 8 },
-            
-            // === PILAR CENTRAL VERTICAL ===
-            { x: 200, y: 300, width: 12, height: 200 },
-            
-            // === PLATAFORMAS CENTRAIS ===
-            { x: 160, y: 460, width: 80, height: 12 },
-            { x: 140, y: 420, width: 60, height: 12 },
-            { x: 180, y: 380, width: 70, height: 12 },
-            { x: 150, y: 340, width: 80, height: 12 },
-            { x: 170, y: 300, width: 60, height: 12 },
-            
-            // === ESTRUTURA CENTRAL-DIREITA ===
-            { x: 280, y: 480, width: 100, height: 15 },
-            { x: 320, y: 440, width: 80, height: 12 },
-            { x: 300, y: 400, width: 90, height: 12 },
-            { x: 340, y: 360, width: 70, height: 12 },
-            { x: 310, y: 320, width: 85, height: 12 },
-            
-            // === ÁREA DIREITA COMPLEXA ===
-            // Base direita
-            { x: 450, y: 480, width: 120, height: 15 },
-            { x: 480, y: 440, width: 100, height: 12 },
-            { x: 460, y: 400, width: 110, height: 12 },
-            { x: 490, y: 360, width: 80, height: 12 },
-            
-            // Estrutura vertical direita
-            { x: 600, y: 350, width: 15, height: 150 },
-            { x: 580, y: 420, width: 60, height: 10 },
-            { x: 620, y: 400, width: 50, height: 10 },
-            { x: 590, y: 380, width: 55, height: 10 },
-            
-            // === ESTRUTURA SUPERIOR DIREITA ===
-            { x: 640, y: 320, width: 100, height: 12 },
-            { x: 680, y: 290, width: 80, height: 10 },
-            { x: 700, y: 260, width: 90, height: 10 },
-            { x: 720, y: 230, width: 70, height: 10 },
-            { x: 740, y: 200, width: 100, height: 10 },
-            
-            // Estrutura em escada (extrema direita)
-            { x: 800, y: 280, width: 60, height: 10 },
-            { x: 820, y: 250, width: 50, height: 10 },
-            { x: 840, y: 220, width: 60, height: 10 },
-            { x: 860, y: 190, width: 80, height: 10 },
-            
-            // === PLATAFORMAS PEQUENAS ESPALHADAS ===
-            { x: 120, y: 320, width: 25, height: 6 },
-            { x: 250, y: 360, width: 30, height: 6 },
-            { x: 350, y: 280, width: 35, height: 6 },
-            { x: 420, y: 340, width: 25, height: 6 },
-            { x: 520, y: 320, width: 30, height: 6 },
-            { x: 650, y: 240, width: 25, height: 6 },
-            
-            // === ÁREA SUPERIOR (topo) ===
-            { x: 100, y: 180, width: 80, height: 8 },
-            { x: 220, y: 160, width: 70, height: 8 },
-            { x: 320, y: 140, width: 90, height: 8 },
-            { x: 450, y: 120, width: 100, height: 8 },
-            { x: 600, y: 100, width: 120, height: 8 },
-            { x: 760, y: 80, width: 150, height: 8 }
+            { x: 100, y: 450, width: 80, height: 15 },
+            { x: 200, y: 400, width: 60, height: 15 },
+            { x: 300, y: 350, width: 90, height: 15 },
+            { x: 150, y: 300, width: 70, height: 15 }
         ];
         
-        // Posição inicial do player (onde estava o círculo branco)
         this.playerSpawnX = 50;
         this.playerSpawnY = 480;
     }
     
     generateEssences() {
-        // Essências estrategicamente posicionadas
-        this.essences = [
-            // Área esquerda
-            { x: 50, y: 440, collected: false, type: 'small' },
-            { x: 110, y: 380, collected: false, type: 'small' },
-            { x: 80, y: 340, collected: false, type: 'small' },
-            
-            // Área central
-            { x: 200, y: 440, collected: false, type: 'large' },
-            { x: 220, y: 360, collected: false, type: 'crystal' },
-            { x: 350, y: 420, collected: false, type: 'large' },
-            
-            // Área direita
-            { x: 520, y: 460, collected: false, type: 'large' },
-            { x: 610, y: 400, collected: false, type: 'small' },
-            { x: 720, y: 300, collected: false, type: 'crystal' },
-            
-            // Área superior
-            { x: 140, y: 160, collected: false, type: 'crystal' },
-            { x: 260, y: 140, collected: false, type: 'large' },
-            { x: 480, y: 100, collected: false, type: 'crystal' },
-            { x: 680, y: 80, collected: false, type: 'crystal' },
-            { x: 820, y: 60, collected: false, type: 'crystal' },
-            
-            // Plataformas pequenas
-            { x: 140, y: 300, collected: false, type: 'small' },
-            { x: 270, y: 340, collected: false, type: 'small' },
-            { x: 370, y: 260, collected: false, type: 'small' },
-            { x: 540, y: 300, collected: false, type: 'small' }
-        ];
+        // Gerar essências baseadas nas plataformas
+        this.essences = [];
+        
+        // Colocar uma essência em cada plataforma (exceto a primeira - chão)
+        this.platforms.slice(1).forEach((platform, index) => {
+            if (Math.random() < 0.7) { // 70% chance de ter essência
+                const essenceX = platform.x + platform.width / 2;
+                const essenceY = platform.y - 20; // Um pouco acima da plataforma
+                
+                const types = ['small', 'large', 'crystal'];
+                const type = types[index % types.length];
+                
+                this.essences.push({
+                    x: essenceX,
+                    y: essenceY,
+                    collected: false,
+                    type: type
+                });
+            }
+        });
+        
+        console.log(`✨ ${this.essences.length} essências geradas`);
     }
     
     getPlayerSpawn() {
@@ -160,7 +250,7 @@ export class World {
             
             ctx.fillStyle = litColor;
             
-            // Desenhar plataforma retangular exatamente como na imagem
+            // Desenhar plataforma retangular
             ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
             
             // Borda sutil

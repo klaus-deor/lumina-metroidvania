@@ -6,6 +6,7 @@ import { Player } from './player.js';
 import { World } from './world.js';
 import { Camera } from './camera.js';
 import { InputManager } from './input.js';
+import { EffectsSystem } from './effects.js';
 
 class Game {
     constructor() {
@@ -15,10 +16,14 @@ class Game {
         this.minimapCtx = this.minimapCanvas.getContext('2d');
         
         // Sistemas do jogo
-        this.player = new Player(100, 900); // Posição inicial
+        this.effects = new EffectsSystem();
         this.world = new World();
         this.camera = new Camera();
         this.input = new InputManager();
+        
+        // Player com posição inicial baseada na imagem
+        const spawn = this.world.getPlayerSpawn();
+        this.player = new Player(spawn.x, spawn.y, this.effects);
         
         // Estado do jogo
         this.animationFrame = 0;
@@ -30,7 +35,9 @@ class Game {
     
     init() {
         console.log('🎮 LUMINA iniciando...');
-        console.log('📍 Layout baseado no desenho do Klaus');
+        console.log('📍 Layout baseado EXATAMENTE na sua imagem PNG');
+        console.log(`🗺️ Mundo: ${CONFIG.WORLD.WIDTH}x${CONFIG.WORLD.HEIGHT}`);
+        console.log(`👤 Player spawn: ${this.player.x}, ${this.player.y}`);
         this.running = true;
         this.gameLoop();
     }
@@ -38,6 +45,9 @@ class Game {
     update() {
         // Atualizar input primeiro
         this.input.update();
+        
+        // Atualizar sistemas de efeitos
+        this.effects.update();
         
         // Atualizar jogador
         this.player.update(this.input.getKeys(), this.world.platforms);
@@ -48,6 +58,9 @@ class Game {
         // Verificar coleta de essências
         const collectedEssences = this.world.checkEssenceCollection(this.player);
         if (collectedEssences.length > 0) {
+            collectedEssences.forEach(({ essence }) => {
+                this.player.collectEssence(essence);
+            });
             this.essenceCount += collectedEssences.length;
             this.updateUI();
         }
@@ -75,6 +88,9 @@ class Game {
         // Desenhar mundo
         this.world.drawPlatforms(this.ctx, this.camera, this.player);
         this.world.drawEssences(this.ctx, this.camera, this.animationFrame);
+        
+        // Desenhar efeitos (atrás do player)
+        this.effects.draw(this.ctx, this.camera);
         
         // Desenhar jogador
         this.player.draw(this.ctx, this.camera);
@@ -138,7 +154,9 @@ class Game {
         const playerX = this.player.x * scaleX;
         const playerY = this.player.y * scaleY;
         this.minimapCtx.fillStyle = CONFIG.COLORS.PLAYER;
-        this.minimapCtx.fillRect(playerX-2, playerY-2, 4, 4);
+        this.minimapCtx.beginPath();
+        this.minimapCtx.arc(playerX, playerY, 3, 0, Math.PI * 2);
+        this.minimapCtx.fill();
         
         // Desenhar área visível da câmera
         const cameraX = this.camera.x * scaleX;
@@ -179,8 +197,10 @@ class Game {
     }
     
     reset() {
-        this.player = new Player(100, 900);
+        const spawn = this.world.getPlayerSpawn();
+        this.player = new Player(spawn.x, spawn.y, this.effects);
         this.camera = new Camera();
+        this.effects = new EffectsSystem();
         this.essenceCount = 0;
         this.animationFrame = 0;
         
@@ -196,6 +216,7 @@ class Game {
 // Iniciar o jogo quando a página carregar
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🌟 Carregando LUMINA...');
+    console.log('🎯 Versão baseada na imagem PNG do Klaus');
     new Game();
 });
 

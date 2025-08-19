@@ -19,7 +19,6 @@ export const CONFIG = {
         RADIUS: 12,
         SPEED: 6,
         JUMP_FORCE: -11,
-        GRAVITY: 0.45,
         FRICTION: 0.88,
         LIGHT_RADIUS: 120
     },

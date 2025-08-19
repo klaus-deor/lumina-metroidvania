@@ -6,6 +6,9 @@ export class InputManager {
         this.keys = {};
         this.previousKeys = {};
         this.setupEventListeners();
+        
+        // 🐛 DEBUG: Log para verificar se input está funcionando
+        console.log('⌨️ Sistema de input inicializado');
     }
     
     setupEventListeners() {
@@ -15,6 +18,11 @@ export class InputManager {
             // Prevenir comportamento padrão para espaço
             if (key === ' ') {
                 e.preventDefault();
+            }
+            
+            // 🐛 DEBUG: Log para Q e E
+            if (key === 'q' || key === 'e') {
+                console.log(`🎮 Tecla ${key.toUpperCase()} pressionada`);
             }
             
             this.keys[key] = true;
@@ -27,7 +35,19 @@ export class InputManager {
         
         // Garantir que o canvas tenha foco
         document.addEventListener('click', () => {
-            document.getElementById('gameCanvas').focus();
+            const canvas = document.getElementById('gameCanvas');
+            if (canvas) {
+                canvas.focus();
+            }
+        });
+        
+        // 🔧 CORREÇÃO: Garantir foco no canvas ao carregar
+        window.addEventListener('load', () => {
+            const canvas = document.getElementById('gameCanvas');
+            if (canvas) {
+                canvas.setAttribute('tabindex', '0');
+                canvas.focus();
+            }
         });
     }
     
@@ -42,7 +62,14 @@ export class InputManager {
     
     wasJustPressed(key) {
         const k = key.toLowerCase();
-        return this.keys[k] && !this.previousKeys[k];
+        const justPressed = this.keys[k] && !this.previousKeys[k];
+        
+        // 🐛 DEBUG: Log específico para ataques
+        if (justPressed && (k === 'q' || k === 'e')) {
+            console.log(`⚡ Ataque ${k.toUpperCase()} executado!`);
+        }
+        
+        return justPressed;
     }
     
     getKeys() {

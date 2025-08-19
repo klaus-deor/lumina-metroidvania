@@ -4,6 +4,7 @@
 export class InputManager {
     constructor() {
         this.keys = {};
+        this.previousKeys = {};
         this.setupEventListeners();
     }
     
@@ -30,17 +31,21 @@ export class InputManager {
         });
     }
     
+    update() {
+        // Atualizar estado anterior das teclas
+        this.previousKeys = { ...this.keys };
+    }
+    
     isPressed(key) {
         return !!this.keys[key.toLowerCase()];
     }
     
-    getKeys() {
-        return this.keys;
+    wasJustPressed(key) {
+        const k = key.toLowerCase();
+        return this.keys[k] && !this.previousKeys[k];
     }
     
-    // Verificar se uma tecla foi pressionada neste frame
-    wasJustPressed(key) {
-        // Para implementação futura de "just pressed"
-        return this.isPressed(key);
+    getKeys() {
+        return this.keys;
     }
 }

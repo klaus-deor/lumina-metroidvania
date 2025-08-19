@@ -4,7 +4,7 @@
 import { CONFIG } from './config.js';
 
 export class Player {
-    constructor(x = 100, y = 900) {
+    constructor(x = 50, y = 480, effectsSystem = null) {
         // Posição e física
         this.x = x;
         this.y = y;
@@ -16,14 +16,17 @@ export class Player {
         this.grounded = false;
         this.facingRight = true;
         this.jumpBuffered = false;
+        this.wasGrounded = false;
         
         // Efeitos visuais
         this.glowIntensity = 0;
         this.attackCooldown = 0;
         this.lightRadius = CONFIG.PLAYER.LIGHT_RADIUS;
+        this.effects = effectsSystem;
         
         // Input buffer
         this.jumpBufferTime = 0;
+        this.frameCount = 0;
     }
     
     update(keys, platforms) {
@@ -32,6 +35,7 @@ export class Player {
         this.handleCollisions(platforms);
         this.updateEffects();
         this.constrainToWorld();
+        this.frameCount++;
     }
     
     handleInput(keys) {
@@ -39,10 +43,20 @@ export class Player {
         if (keys['a'] || keys['arrowleft']) {
             this.vx = Math.max(this.vx - 0.5, -CONFIG.PLAYER.SPEED);
             this.facingRight = false;
+            
+            // Partículas de movimento
+            if (this.frameCount % 6 === 0 && this.effects) {
+                this.effects.addPlayerTrailParticle(this.x, this.y, this.vx, this.vy);
+            }
         }
         if (keys['d'] || keys['arrowright']) {
             this.vx = Math.min(this.vx + 0.5, CONFIG.PLAYER.SPEED);
             this.facingRight = true;
+            
+            // Partículas de movimento
+            if (this.frameCount % 6 === 0 && this.effects) {
+                this.effects.addPlayerTrailParticle(this.x, this.y, this.vx, this.vy);
+            }
         }
         
         // Pulo com buffer
@@ -77,12 +91,17 @@ export class Player {
                 this.vy = CONFIG.PLAYER.JUMP_FORCE;
                 this.grounded = false;
                 this.jumpBufferTime = 0;
+                
+                // Efeito de pulo
+                if (this.effects) {
+                    this.effects.addJumpParticles(this.x, this.y);
+                }
             }
         }
     }
     
     handleCollisions(platforms) {
-        let wasGrounded = this.grounded;
+        this.wasGrounded = this.grounded;
         this.grounded = false;
         
         platforms.forEach(platform => {
@@ -95,6 +114,11 @@ export class Player {
                 this.y = platform.y - this.radius;
                 this.vy = 0;
                 this.grounded = true;
+                
+                // Efeito de aterrissagem (apenas se estava caindo rápido)
+                if (!this.wasGrounded && Math.abs(this.vy) > 3 && this.effects) {
+                    this.effects.addLandingParticles(this.x, this.y);
+                }
             }
         });
     }
@@ -103,6 +127,12 @@ export class Player {
         if (this.grounded) {
             this.vy = CONFIG.PLAYER.JUMP_FORCE;
             this.grounded = false;
+            
+            // Efeito de pulo
+            if (this.effects) {
+                this.effects.addJumpParticles(this.x, this.y);
+            }
+            
             return true;
         }
         return false;
@@ -110,6 +140,12 @@ export class Player {
     
     lightPulse() {
         this.glowIntensity = 15;
+        
+        // Efeito de pulso
+        if (this.effects) {
+            this.effects.addLightPulse(this.x, this.y);
+        }
+        
         return {
             x: this.x,
             y: this.y,
@@ -120,8 +156,13 @@ export class Player {
     slashAttack() {
         if (this.attackCooldown > 0) return null;
         
-        this.attackCooldown = 25;
-        this.glowIntensity = 15;
+        this.attackCooldown = 20;
+        this.glowIntensity = 12;
+        
+        // Efeito de slash
+        if (this.effects) {
+            this.effects.addSlashAttack(this.x, this.y, this.facingRight);
+        }
         
         return {
             x: this.x,
@@ -134,17 +175,33 @@ export class Player {
     updateEffects() {
         if (this.glowIntensity > 0) this.glowIntensity--;
         if (this.attackCooldown > 0) this.attackCooldown--;
+        
+        // Partículas ambientes do personagem
+        if (this.frameCount % 15 === 0 && this.effects) {
+            this.effects.addPlayerTrailParticle(
+                this.x + Math.random() * 8 - 4,
+                this.y + Math.random() * 8 - 4,
+                Math.random() * 0.5 - 0.25,
+                Math.random() * 0.5 - 0.25
+            );
+        }
     }
     
     constrainToWorld() {
         this.x = Math.max(this.radius, Math.min(CONFIG.WORLD.WIDTH - this.radius, this.x));
         
         // Respawn se cair muito
-        if (this.y > CONFIG.WORLD.HEIGHT + 200) {
-            this.x = 100;
-            this.y = 900;
+        if (this.y > CONFIG.WORLD.HEIGHT + 100) {
+            this.x = 50;
+            this.y = 480;
             this.vx = 0;
             this.vy = 0;
+        }
+    }
+    
+    collectEssence(essence) {
+        if (this.effects) {
+            this.effects.addEssenceCollectEffect(essence.x, essence.y, essence.type);
         }
     }
     
@@ -152,33 +209,42 @@ export class Player {
         ctx.save();
         ctx.translate(-camera.x, -camera.y);
         
-        // Aura de luz
+        // Aura de luz expandida
+        const auraRadius = this.radius + 20 + this.glowIntensity;
         const auraGradient = ctx.createRadialGradient(
             this.x, this.y, 0,
-            this.x, this.y, this.radius + 15 + this.glowIntensity
+            this.x, this.y, auraRadius
         );
-        auraGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-        auraGradient.addColorStop(0.4, 'rgba(240, 240, 240, 0.3)');
+        auraGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+        auraGradient.addColorStop(0.3, 'rgba(240, 240, 240, 0.4)');
+        auraGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
         auraGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.fillStyle = auraGradient;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius + 20 + this.glowIntensity, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, auraRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Corpo principal
+        // Corpo principal do personagem
         ctx.shadowColor = CONFIG.COLORS.PLAYER;
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 12 + this.glowIntensity;
         ctx.fillStyle = CONFIG.COLORS.PLAYER;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Núcleo brilhante
-        ctx.shadowBlur = 3;
+        // Núcleo super brilhante
+        ctx.shadowBlur = 5;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * 0.5, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ponto central
+        ctx.shadowBlur = 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * 0.3, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.restore();

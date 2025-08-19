@@ -71,23 +71,25 @@ export class World {
     
     generateWorldFromPixels(pixels, width, height) {
         const platforms = [];
-        const scale = 3; // Escalar imagem para mundo maior
+        const scale = 1; // 🎯 REDUZIDO DE 3 PARA 1 - escala menor!
         let playerFound = false;
         
         console.log('🔍 Processando pixels...');
         
-        // Percorrer pixels linha por linha para formar plataformas horizontais
-        for (let y = 0; y < height; y++) {
+        // Agrupar pixels em blocos maiores para performance
+        const blockSize = 2; // Processar em blocos de 2x2 pixels
+        
+        for (let y = 0; y < height; y += blockSize) {
             let currentPlatform = null;
             
-            for (let x = 0; x < width; x++) {
+            for (let x = 0; x < width; x += blockSize) {
+                // Verificar o pixel principal do bloco
                 const pixelIndex = (y * width + x) * 4;
-                const r = pixels[pixelIndex];
-                const g = pixels[pixelIndex + 1];
-                const b = pixels[pixelIndex + 2];
+                const r = pixels[pixelIndex] || 0;
+                const g = pixels[pixelIndex + 1] || 0;
+                const b = pixels[pixelIndex + 2] || 0;
                 
                 // Verificar se é pixel cinza (plataforma)
-                // Aceitar uma faixa de cinza para ser mais tolerante
                 const isGray = (r >= 100 && r <= 180) && 
                                (g >= 100 && g <= 180) && 
                                (b >= 100 && b <= 180) &&
@@ -99,12 +101,12 @@ export class World {
                         currentPlatform = {
                             x: x * scale,
                             y: y * scale,
-                            width: scale,
-                            height: scale
+                            width: blockSize * scale,
+                            height: blockSize * scale
                         };
                     } else {
                         // Estender plataforma horizontal
-                        currentPlatform.width += scale;
+                        currentPlatform.width += blockSize * scale;
                     }
                 } else {
                     if (currentPlatform) {
@@ -130,8 +132,8 @@ export class World {
             }
         }
         
-        // Otimizar plataformas - juntar plataformas verticalmente adjacentes
-        const optimizedPlatforms = this.optimizePlatforms(platforms);
+        // 🚀 OTIMIZAÇÃO AGRESSIVA para performance
+        const optimizedPlatforms = this.aggressiveOptimization(platforms);
         
         this.platforms = optimizedPlatforms;
         
@@ -141,43 +143,60 @@ export class World {
         
         console.log(`🏗️ ${platforms.length} plataformas brutas → ${optimizedPlatforms.length} otimizadas`);
         console.log(`🌍 Mundo ajustado para ${CONFIG.WORLD.WIDTH}x${CONFIG.WORLD.HEIGHT}`);
+        console.log(`🎮 Player spawn: (${this.playerSpawnX}, ${this.playerSpawnY})`);
     }
     
-    optimizePlatforms(platforms) {
-        // Agrupar plataformas que estão na mesma posição X e têm mesma largura
-        const optimized = [];
-        const processed = new Set();
+    aggressiveOptimization(platforms) {
+        console.log('⚡ Otimização agressiva para performance...');
         
-        platforms.forEach((platform, index) => {
-            if (processed.has(index)) return;
+        // Primeira passada: combinar horizontalmente
+        let optimized = [];
+        platforms.sort((a, b) => a.y - b.y || a.x - b.x);
+        
+        for (let platform of platforms) {
+            let merged = false;
             
-            let combined = { ...platform };
-            processed.add(index);
-            
-            // Procurar plataformas que podem ser combinadas verticalmente
-            for (let i = index + 1; i < platforms.length; i++) {
-                if (processed.has(i)) continue;
-                
-                const other = platforms[i];
-                
-                // Podem ser combinadas se:
-                // 1. Mesma posição X e largura
-                // 2. Estão verticalmente adjacentes
-                if (other.x === combined.x && 
-                    other.width === combined.width &&
-                    other.y === combined.y + combined.height) {
-                    
-                    // Combinar verticalmente
-                    combined.height += other.height;
-                    processed.add(i);
-                    i--; // Verificar novamente a partir da mesma posição
+            for (let opt of optimized) {
+                // Combinar se na mesma linha e adjacente horizontalmente
+                if (opt.y === platform.y && 
+                    opt.height === platform.height &&
+                    opt.x + opt.width === platform.x) {
+                    opt.width += platform.width;
+                    merged = true;
+                    break;
                 }
             }
             
-            optimized.push(combined);
-        });
+            if (!merged) {
+                optimized.push({ ...platform });
+            }
+        }
         
-        return optimized;
+        // Segunda passada: combinar verticalmente
+        let finalOptimized = [];
+        optimized.sort((a, b) => a.x - b.x || a.y - b.y);
+        
+        for (let platform of optimized) {
+            let merged = false;
+            
+            for (let opt of finalOptimized) {
+                // Combinar se na mesma coluna e adjacente verticalmente
+                if (opt.x === platform.x && 
+                    opt.width === platform.width &&
+                    opt.y + opt.height === platform.y) {
+                    opt.height += platform.height;
+                    merged = true;
+                    break;
+                }
+            }
+            
+            if (!merged) {
+                finalOptimized.push({ ...platform });
+            }
+        }
+        
+        console.log(`⚡ Otimização: ${platforms.length} → ${optimized.length} → ${finalOptimized.length}`);
+        return finalOptimized;
     }
     
     generateWorldFromDescription() {
@@ -196,14 +215,14 @@ export class World {
     }
     
     generateEssences() {
-        // Gerar essências baseadas nas plataformas
+        // Gerar essências baseadas nas plataformas (menos para performance)
         this.essences = [];
         
-        // Colocar uma essência em cada plataforma (exceto a primeira - chão)
+        // Colocar uma essência a cada 3 plataformas para não sobrecarregar
         this.platforms.slice(1).forEach((platform, index) => {
-            if (Math.random() < 0.7) { // 70% chance de ter essência
+            if (index % 3 === 0 && platform.width > 30) { // Só em plataformas maiores
                 const essenceX = platform.x + platform.width / 2;
-                const essenceY = platform.y - 20; // Um pouco acima da plataforma
+                const essenceY = platform.y - 20;
                 
                 const types = ['small', 'large', 'crystal'];
                 const type = types[index % types.length];
@@ -231,7 +250,15 @@ export class World {
         ctx.save();
         ctx.translate(-camera.x, -camera.y);
         
-        this.platforms.forEach(platform => {
+        // 🚀 OTIMIZAÇÃO: Só desenhar plataformas visíveis na tela
+        const visiblePlatforms = this.platforms.filter(platform => {
+            return platform.x + platform.width >= camera.x &&
+                   platform.x <= camera.x + CONFIG.CANVAS.WIDTH &&
+                   platform.y + platform.height >= camera.y &&
+                   platform.y <= camera.y + CONFIG.CANVAS.HEIGHT;
+        });
+        
+        visiblePlatforms.forEach(platform => {
             // Calcular iluminação baseada na distância do jogador
             const dist = Math.sqrt(
                 (player.x - (platform.x + platform.width/2)) ** 2 + 
@@ -253,10 +280,12 @@ export class World {
             // Desenhar plataforma retangular
             ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
             
-            // Borda sutil
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+            // Borda sutil (só em plataformas grandes para performance)
+            if (platform.width > 20 && platform.height > 10) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+            }
         });
         
         ctx.restore();
@@ -266,53 +295,60 @@ export class World {
         ctx.save();
         ctx.translate(-camera.x, -camera.y);
         
-        this.essences.forEach(essence => {
-            if (!essence.collected) {
-                const time = animationFrame * 0.08;
-                const float = Math.sin(time + essence.x * 0.01) * 2;
-                const glow = Math.sin(time * 1.5 + essence.y * 0.01) * 0.3 + 0.7;
-                
-                ctx.save();
-                ctx.translate(essence.x, essence.y + float);
-                
-                let color, size;
-                if (essence.type === 'small') {
-                    color = CONFIG.COLORS.MAGIC;
-                    size = 5;
-                } else if (essence.type === 'large') {
-                    color = CONFIG.COLORS.ESSENCE;
-                    size = 7;
-                } else {
-                    color = CONFIG.COLORS.LIFE;
-                    size = 9;
-                }
-                
-                ctx.shadowColor = color;
-                ctx.shadowBlur = 12 * glow;
-                ctx.globalAlpha = glow;
-                ctx.fillStyle = color;
-                
-                if (essence.type === 'crystal') {
-                    // Hexágono para cristais
-                    ctx.beginPath();
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (Math.PI * 2 * i) / 6;
-                        const x = Math.cos(angle) * size;
-                        const y = Math.sin(angle) * size;
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                } else {
-                    // Círculo para outras essências
-                    ctx.beginPath();
-                    ctx.arc(0, 0, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                ctx.restore();
+        // 🚀 OTIMIZAÇÃO: Só desenhar essências visíveis
+        const visibleEssences = this.essences.filter(essence => 
+            !essence.collected &&
+            essence.x >= camera.x - 50 &&
+            essence.x <= camera.x + CONFIG.CANVAS.WIDTH + 50 &&
+            essence.y >= camera.y - 50 &&
+            essence.y <= camera.y + CONFIG.CANVAS.HEIGHT + 50
+        );
+        
+        visibleEssences.forEach(essence => {
+            const time = animationFrame * 0.08;
+            const float = Math.sin(time + essence.x * 0.01) * 2;
+            const glow = Math.sin(time * 1.5 + essence.y * 0.01) * 0.3 + 0.7;
+            
+            ctx.save();
+            ctx.translate(essence.x, essence.y + float);
+            
+            let color, size;
+            if (essence.type === 'small') {
+                color = CONFIG.COLORS.MAGIC;
+                size = 5;
+            } else if (essence.type === 'large') {
+                color = CONFIG.COLORS.ESSENCE;
+                size = 7;
+            } else {
+                color = CONFIG.COLORS.LIFE;
+                size = 9;
             }
+            
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 12 * glow;
+            ctx.globalAlpha = glow;
+            ctx.fillStyle = color;
+            
+            if (essence.type === 'crystal') {
+                // Hexágono para cristais
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI * 2 * i) / 6;
+                    const x = Math.cos(angle) * size;
+                    const y = Math.sin(angle) * size;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Círculo para outras essências
+                ctx.beginPath();
+                ctx.arc(0, 0, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
         });
         
         ctx.restore();

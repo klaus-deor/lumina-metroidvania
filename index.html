@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUMINA - Metroidvania</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Georgia', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameCanvas {
+            border: 1px solid #333;
+            background: #000;
+        }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffd700;
+            font-size: 14px;
+            text-shadow: 0 0 8px #ffd700;
+            z-index: 10;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4a7c59;
+            text-align: center;
+            font-size: 12px;
+            text-shadow: 0 0 5px #4a7c59;
+            z-index: 10;
+        }
+        
+        .minimap {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #4a7c59;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        
+        .info {
+            position: absolute;
+            top: 180px;
+            right: 20px;
+            color: #4a7c59;
+            font-size: 11px;
+            max-width: 200px;
+            text-shadow: 0 0 3px #4a7c59;
+        }
+    </style>
+</head>
+<body>
+    <div class="ui-overlay">
+        <div>✦ LUMINA ✦ Guardian of Light</div>
+        <div>Essências: <span id="essenceCount">0</span></div>
+        <div>Posição: X <span id="posX">100</span> Y <span id="posY">900</span></div>
+    </div>
+    
+    <canvas id="gameCanvas" width="1200" height="700"></canvas>
+    <canvas id="minimap" class="minimap" width="200" height="150"></canvas>
+    
+    <div class="info">
+        <div><strong>🗺️ Layout baseado no seu desenho</strong></div>
+        <div>• Estrutura modular</div>
+        <div>• Múltiplos caminhos</div>
+        <div>• Essências espalhadas</div>
+        <div>• Ctrl+R para recarregar</div>
+    </div>
+    
+    <div class="controls">
+        <div>WASD - Movimento | SPACE - Pular | Q - Pulso de Luz | E - Ataque Slash</div>
+        <div>Projeto modular - cada sistema em arquivo separado</div>
+    </div>
+
+    <script type="module" src="js/game.js"></script>
+</body>
+</html>

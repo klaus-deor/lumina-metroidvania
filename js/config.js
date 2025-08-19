@@ -1,11 +1,11 @@
 // LUMINA - Configurações Globais
-// Baseado no layout desenhado pelo Klaus
+// Baseado na imagem exata do Klaus
 
 export const CONFIG = {
-    // Dimensões do mundo
+    // Dimensões do mundo (baseado na imagem)
     WORLD: {
-        WIDTH: 1600,
-        HEIGHT: 1200
+        WIDTH: 1000,
+        HEIGHT: 600
     },
     
     // Dimensões do canvas
@@ -16,16 +16,16 @@ export const CONFIG = {
     
     // Configurações do jogador
     PLAYER: {
-        RADIUS: 12,
-        SPEED: 6,
-        JUMP_FORCE: -11,
+        RADIUS: 8,  // Menor para ficar proporcional à imagem
+        SPEED: 5,
+        JUMP_FORCE: -10,
         FRICTION: 0.88,
-        LIGHT_RADIUS: 120
+        LIGHT_RADIUS: 100
     },
     
     // Configurações da câmera
     CAMERA: {
-        SMOOTHING: 0.08
+        SMOOTHING: 0.06
     },
     
     // Paleta de cores
@@ -35,12 +35,12 @@ export const CONFIG = {
         BG_MID: '#0a0a0a', 
         BG_NEAR: '#1a1a1a',
         
-        // Plataformas (baseado no desenho)
+        // Plataformas (baseado na imagem - cinza)
         PLATFORM_DARK: '#404040',
         PLATFORM_MID: '#606060',
         PLATFORM_LIGHT: '#808080',
         
-        // Personagem
+        // Personagem (círculo branco da imagem)
         PLAYER: '#ffffff',
         PLAYER_GLOW: '#f0f0f0',
         
@@ -53,8 +53,8 @@ export const CONFIG = {
     
     // Configurações de física
     PHYSICS: {
-        COLLISION_BUFFER: 10,
-        GROUND_DETECTION: 10,
-        GRAVITY: 0.45
+        COLLISION_BUFFER: 5,
+        GROUND_DETECTION: 8,
+        GRAVITY: 0.4
     }
 };

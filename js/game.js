@@ -36,6 +36,9 @@ class Game {
     }
     
     update() {
+        // Atualizar input primeiro
+        this.input.update();
+        
         // Atualizar jogador
         this.player.update(this.input.getKeys(), this.world.platforms);
         
@@ -49,12 +52,12 @@ class Game {
             this.updateUI();
         }
         
-        // Ataques especiais
-        if (this.input.isPressed('q')) {
+        // Ataques especiais - usar wasJustPressed para não disparar continuamente
+        if (this.input.wasJustPressed('q')) {
             this.player.lightPulse();
         }
         
-        if (this.input.isPressed('e')) {
+        if (this.input.wasJustPressed('e')) {
             this.player.slashAttack();
         }
         

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUMINA - Debug Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Georgia', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameCanvas {
+            border: 1px solid #333;
+            background: #000;
+            cursor: crosshair;
+        }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffd700;
+            font-size: 14px;
+            text-shadow: 0 0 8px #ffd700;
+            z-index: 10;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ff00;
+            font-size: 12px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 10;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4a7c59;
+            text-align: center;
+            font-size: 12px;
+            text-shadow: 0 0 5px #4a7c59;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="ui-overlay">
+        <div>✦ LUMINA ✦ Guardian of Light [DEBUG]</div>
+        <div>Essências: <span id="essenceCount">0</span></div>
+        <div>Posição: X <span id="posX">100</span> Y <span id="posY">900</span></div>
+        <div style="color: #ff6666; font-size: 10px; margin-top: 5px;">DEBUG MODE - Pressione Q ou E</div>
+    </div>
+    
+    <div class="debug-info">
+        <div>🎮 INPUT DEBUG:</div>
+        <div>Q pressionado: <span id="qPressed">false</span></div>
+        <div>E pressionado: <span id="ePressed">false</span></div>
+        <div>Última tecla: <span id="lastKey">nenhuma</span></div>
+        <div>Efeitos ativos: <span id="effectsCount">0</span></div>
+        <div>FPS: <span id="fpsCounter">--</span></div>
+    </div>
+    
+    <canvas id="gameCanvas" width="1200" height="700" tabindex="0"></canvas>
+    
+    <div class="controls">
+        <div>WASD - Movimento | SPACE - Pular | Q - Pulso de Luz | E - Ataque Slash</div>
+        <div>🐛 VERSÃO DEBUG - Monitora inputs em tempo real</div>
+    </div>
+
+    <script type="module">
+        // DEBUG: Sistema simples para testar Q e E diretamente
+        
+        let keys = {};
+        let previousKeys = {};
+        let effectsCount = 0;
+        let lastKey = 'nenhuma';
+        let fpsCounter = 0;
+        let lastTime = performance.now();
+        let frameCount = 0;
+        
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.focus(); // Importante!
+        
+        // Elementos debug
+        const qPressedEl = document.getElementById('qPressed');
+        const ePressedEl = document.getElementById('ePressed');
+        const lastKeyEl = document.getElementById('lastKey');
+        const effectsCountEl = document.getElementById('effectsCount');
+        const fpsCounterEl = document.getElementById('fpsCounter');
+        
+        // Player simples para teste
+        const player = {
+            x: 600,
+            y: 350,
+            vx: 0,
+            vy: 0,
+            radius: 15,
+            glowIntensity: 0
+        };
+        
+        // Array de efeitos para teste
+        let effects = [];
+        
+        // Classe simples de efeito
+        class SimpleEffect {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.life = type === 'pulse' ? 30 : 20;
+                this.maxLife = this.life;
+                this.radius = 0;
+            }
+            
+            update() {
+                this.life--;
+                if (this.type === 'pulse') {
+                    this.radius = (1 - this.life / this.maxLife) * 80;
+                }
+                return this.life > 0;
+            }
+            
+            draw() {
+                ctx.save();
+                const alpha = this.life / this.maxLife;
+                
+                if (this.type === 'pulse') {
+                    ctx.globalAlpha = alpha * 0.5;
+                    ctx.strokeStyle = '#00ff7f';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (this.type === 'slash') {
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = '#d2691e';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 30, this.y, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // Event listeners com debug
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = true;
+            lastKey = key.toUpperCase();
+            lastKeyEl.textContent = lastKey;
+            
+            // Debug específico para Q e E
+            if (key === 'q') {
+                console.log('🌟 Q DETECTADO!');
+                qPressedEl.textContent = 'true';
+                qPressedEl.style.color = '#00ff00';
+            }
+            if (key === 'e') {
+                console.log('⚔️ E DETECTADO!');
+                ePressedEl.textContent = 'true';
+                ePressedEl.style.color = '#00ff00';
+            }
+            
+            e.preventDefault();
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            keys[key] = false;
+            
+            if (key === 'q') {
+                qPressedEl.textContent = 'false';
+                qPressedEl.style.color = '#666';
+            }
+            if (key === 'e') {
+                ePressedEl.textContent = 'false';
+                ePressedEl.style.color = '#666';
+            }
+        });
+        
+        // Função para detectar tecla "apenas pressionada"
+        function wasJustPressed(key) {
+            return keys[key] && !previousKeys[key];
+        }
+        
+        // Ações dos ataques
+        function lightPulse() {
+            console.log('🌟 PULSO DE LUZ CRIADO!');
+            effects.push(new SimpleEffect(player.x, player.y, 'pulse'));
+            player.glowIntensity = 15;
+            effectsCount++;
+        }
+        
+        function slashAttack() {
+            console.log('⚔️ SLASH ATTACK CRIADO!');
+            effects.push(new SimpleEffect(player.x, player.y, 'slash'));
+            player.glowIntensity = 15;
+            effectsCount++;
+        }
+        
+        // Update game
+        function update() {
+            // Copiar estado anterior das teclas
+            previousKeys = { ...keys };
+            
+            // Movimento simples
+            if (keys['a']) player.vx = Math.max(player.vx - 0.5, -5);
+            if (keys['d']) player.vx = Math.min(player.vx + 0.5, 5);
+            player.vx *= 0.9;
+            player.x += player.vx;
+            
+            // TESTAR ATAQUES
+            if (wasJustPressed('q')) {
+                lightPulse();
+            }
+            
+            if (wasJustPressed('e')) {
+                slashAttack();
+            }
+            
+            // Atualizar efeitos
+            effects = effects.filter(effect => effect.update());
+            
+            // Diminuir glow
+            if (player.glowIntensity > 0) player.glowIntensity--;
+            
+            // Atualizar UI debug
+            effectsCountEl.textContent = effects.length;
+        }
+        
+        // Render game
+        function render() {
+            // Limpar tela
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenhar efeitos
+            effects.forEach(effect => effect.draw());
+            
+            // Desenhar player
+            ctx.save();
+            
+            // Aura
+            if (player.glowIntensity > 0) {
+                const glow = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, 30 + player.glowIntensity);
+                glow.addColorStop(0, 'rgba(255,255,255,0.5)');
+                glow.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, 30 + player.glowIntensity, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Corpo
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // Mostrar instruções na tela
+            ctx.fillStyle = '#4a7c59';
+            ctx.font = '16px monospace';
+            ctx.fillText('Pressione Q para PULSO', 50, 50);
+            ctx.fillText('Pressione E para SLASH', 50, 70);
+            ctx.fillText('WASD para mover', 50, 90);
+        }
+        
+        // FPS Counter
+        function updateFPS() {
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                fpsCounter = Math.round((frameCount * 1000) / (now - lastTime));
+                fpsCounterEl.textContent = fpsCounter;
+                frameCount = 0;
+                lastTime = now;
+            }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            render();
+            updateFPS();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start
+        console.log('🎮 DEBUG GAME INICIADO - Teste Q e E');
+        canvas.focus();
+        gameLoop();
+    </script>
+</body>
+</html>

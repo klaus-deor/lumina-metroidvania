@@ -65,6 +65,14 @@
             max-width: 200px;
             text-shadow: 0 0 3px #4a7c59;
         }
+        
+        .version {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #666;
+            font-size: 10px;
+        }
     </style>
 </head>
 <body>
@@ -72,24 +80,27 @@
         <div>✦ LUMINA ✦ Guardian of Light</div>
         <div>Essências: <span id="essenceCount">0</span></div>
         <div>Posição: X <span id="posX">100</span> Y <span id="posY">900</span></div>
+        <div style="color: #4a7c59; font-size: 10px; margin-top: 5px;">Versão: 2.1 - Câmera + Efeitos</div>
     </div>
     
     <canvas id="gameCanvas" width="1200" height="700"></canvas>
     <canvas id="minimap" class="minimap" width="200" height="150"></canvas>
     
     <div class="info">
-        <div><strong>🗺️ Layout baseado no seu desenho</strong></div>
-        <div>• Estrutura modular</div>
-        <div>• Múltiplos caminhos</div>
-        <div>• Essências espalhadas</div>
+        <div><strong>🗺️ Layout baseado na sua PNG</strong></div>
+        <div>• Lê pixel por pixel automaticamente</div>
+        <div>• Câmera mais próxima</div>
+        <div>• Q/E funcionando</div>
         <div>• Ctrl+R para recarregar</div>
     </div>
     
     <div class="controls">
         <div>WASD - Movimento | SPACE - Pular | Q - Pulso de Luz | E - Ataque Slash</div>
-        <div>Projeto modular - cada sistema em arquivo separado</div>
+        <div>Sistema modular baseado na sua imagem PNG</div>
     </div>
 
-    <script type="module" src="js/game.js"></script>
+    <div class="version">v2.1</div>
+
+    <script type="module" src="js/game.js?v=21"></script>
 </body>
 </html>

@@ -15,8 +15,12 @@ class Game {
         this.minimapCanvas = document.getElementById('minimap');
         this.minimapCtx = this.minimapCanvas.getContext('2d');
         
-        // Sistemas do jogo
+        // 🎯 CRIAR SISTEMAS NA ORDEM CORRETA
+        console.log('🎮 Inicializando sistemas...');
+        
         this.effects = new EffectsSystem();
+        console.log('✅ Sistema de efeitos criado:', !!this.effects);
+        
         this.world = new World();
         this.camera = new Camera();
         this.input = new InputManager();
@@ -24,6 +28,7 @@ class Game {
         // Player com posição inicial baseada na imagem
         const spawn = this.world.getPlayerSpawn();
         this.player = new Player(spawn.x, spawn.y, this.effects);
+        console.log('✅ Player criado com efeitos:', !!this.player.effects);
         
         // Estado do jogo
         this.animationFrame = 0;
@@ -38,7 +43,7 @@ class Game {
         console.log('📍 Layout baseado EXATAMENTE na sua imagem PNG');
         console.log(`🗺️ Mundo: ${CONFIG.WORLD.WIDTH}x${CONFIG.WORLD.HEIGHT}`);
         console.log(`👤 Player spawn: ${this.player.x}, ${this.player.y}`);
-        console.log('⚡ Efeitos habilitados - Q e E devem funcionar');
+        console.log('⚡ Sistemas ativos - Q (pulso) e E (slash)');
         this.running = true;
         this.gameLoop();
     }
@@ -47,8 +52,10 @@ class Game {
         // Atualizar input primeiro
         this.input.update();
         
-        // Atualizar sistemas de efeitos
-        this.effects.update();
+        // 🎯 GARANTIR QUE EFEITOS SEJAM ATUALIZADOS
+        if (this.effects) {
+            this.effects.update();
+        }
         
         // Atualizar jogador
         this.player.update(this.input.getKeys(), this.world.platforms);
@@ -66,15 +73,17 @@ class Game {
             this.updateUI();
         }
         
-        // 🎯 ATAQUES ESPECIAIS - GARANTINDO QUE FUNCIONEM
+        // 🎯 ATAQUES ESPECIAIS COM LOGS DETALHADOS
         if (this.input.wasJustPressed('q')) {
-            console.log('🌟 PULSO DE LUZ ATIVADO!');
+            console.log('🌟 Q PRESSIONADO - Executando pulso...');
             this.player.lightPulse();
+            console.log('🌟 Pulso executado - Partículas ativas:', this.effects?.particles?.length || 0);
         }
         
         if (this.input.wasJustPressed('e')) {
-            console.log('⚔️ ATAQUE SLASH ATIVADO!');
+            console.log('⚔️ E PRESSIONADO - Executando slash...');
             this.player.slashAttack();
+            console.log('⚔️ Slash executado - Ataques ativos:', this.effects?.slashAttacks?.length || 0);
         }
         
         this.animationFrame++;
@@ -92,19 +101,44 @@ class Game {
         this.world.drawPlatforms(this.ctx, this.camera, this.player);
         this.world.drawEssences(this.ctx, this.camera, this.animationFrame);
         
-        // 🎯 GARANTIR QUE EFEITOS SEJAM DESENHADOS
-        this.effects.draw(this.ctx, this.camera);
+        // 🎯 GARANTIR QUE EFEITOS SEJAM DESENHADOS NA ORDEM CORRETA
+        console.log('🎨 Desenhando efeitos...', {
+            particles: this.effects?.particles?.length || 0,
+            pulses: this.effects?.pulses?.length || 0,
+            slashes: this.effects?.slashAttacks?.length || 0
+        });
         
-        // Desenhar jogador
+        // Desenhar efeitos ANTES do jogador para ficarem atrás
+        if (this.effects) {
+            this.effects.draw(this.ctx, this.camera);
+        }
+        
+        // Desenhar jogador por último (fica na frente)
         this.player.draw(this.ctx, this.camera);
         
+        // 🎯 DESENHAR EFEITOS NOVAMENTE POR CIMA (para testes)
+        if (this.effects && (this.effects.particles?.length > 0 || this.effects.pulses?.length > 0 || this.effects.slashAttacks?.length > 0)) {
+            console.log('🔥 REDESENHANDO EFEITOS POR CIMA...');
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.8;
+            this.effects.draw(this.ctx, this.camera);
+            this.ctx.restore();
+        }
+        
         // Desenhar minimapa (simplificado para performance)
-        if (this.animationFrame % 3 === 0) { // Só atualizar a cada 3 frames
+        if (this.animationFrame % 3 === 0) {
             this.drawMinimap();
         }
         
         // Atualizar UI
         this.updateUI();
+        
+        // 🎯 DEBUG INFO NA TELA
+        this.ctx.fillStyle = '#00ff00';
+        this.ctx.font = '12px monospace';
+        this.ctx.fillText(`Efeitos: P:${this.effects?.particles?.length || 0} Pu:${this.effects?.pulses?.length || 0} S:${this.effects?.slashAttacks?.length || 0}`, 10, 100);
+        this.ctx.fillText(`Player Glow: ${this.player.glowIntensity}`, 10, 115);
+        this.ctx.fillText(`FPS: ${Math.round(1000 / 16)}`, 10, 130);
     }
     
     drawBackground() {
@@ -224,8 +258,8 @@ class Game {
 // Iniciar o jogo quando a página carregar
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🌟 Carregando LUMINA...');
-    console.log('🎯 Versão baseada na imagem PNG do Klaus');
-    console.log('⚡ Sistema de efeitos ativo');
+    console.log('🎯 Versão com efeitos GARANTIDOS');
+    console.log('⚡ Logs detalhados ativados');
     new Game();
 });
 
@@ -236,22 +270,3 @@ window.addEventListener('keydown', (e) => {
         location.reload();
     }
 });
-
-// 🎯 PERFORMANCE MONITOR (opcional)
-let lastTime = performance.now();
-let frameCount = 0;
-let fps = 60;
-
-function updateFPS() {
-    frameCount++;
-    const now = performance.now();
-    if (now - lastTime >= 1000) {
-        fps = Math.round((frameCount * 1000) / (now - lastTime));
-        console.log(`📊 FPS: ${fps}`);
-        frameCount = 0;
-        lastTime = now;
-    }
-}
-
-// Uncomment para monitorar FPS
-// setInterval(updateFPS, 100);

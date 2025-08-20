@@ -27,6 +27,8 @@ export class Player {
         // Input buffer
         this.jumpBufferTime = 0;
         this.frameCount = 0;
+        
+        console.log('👤 Player criado com sistema de efeitos:', !!this.effects);
     }
     
     update(keys, platforms) {
@@ -139,11 +141,16 @@ export class Player {
     }
     
     lightPulse() {
-        this.glowIntensity = 15;
+        console.log('🌟 PULSO DE LUZ EXECUTADO - Sistema de efeitos:', !!this.effects);
         
-        // Efeito de pulso
+        this.glowIntensity = 20; // Aumentado para ser mais visível
+        
+        // 🎯 GARANTIR QUE O EFEITO SEJA CRIADO
         if (this.effects) {
+            console.log('✅ Criando efeito de pulso...');
             this.effects.addLightPulse(this.x, this.y);
+        } else {
+            console.log('❌ Sistema de efeitos não disponível!');
         }
         
         return {
@@ -154,14 +161,22 @@ export class Player {
     }
     
     slashAttack() {
-        if (this.attackCooldown > 0) return null;
+        if (this.attackCooldown > 0) {
+            console.log('⏰ Slash em cooldown...');
+            return null;
+        }
+        
+        console.log('⚔️ SLASH ATTACK EXECUTADO - Sistema de efeitos:', !!this.effects);
         
         this.attackCooldown = 20;
-        this.glowIntensity = 12;
+        this.glowIntensity = 15; // Aumentado para ser mais visível
         
-        // Efeito de slash
+        // 🎯 GARANTIR QUE O EFEITO SEJA CRIADO
         if (this.effects) {
+            console.log('✅ Criando efeito de slash...');
             this.effects.addSlashAttack(this.x, this.y, this.facingRight);
+        } else {
+            console.log('❌ Sistema de efeitos não disponível!');
         }
         
         return {
@@ -209,15 +224,15 @@ export class Player {
         ctx.save();
         ctx.translate(-camera.x, -camera.y);
         
-        // Aura de luz expandida
-        const auraRadius = this.radius + 20 + this.glowIntensity;
+        // 🎯 AURA MAIS VISÍVEL quando há glow
+        const auraRadius = this.radius + 20 + (this.glowIntensity * 2); // Multiplicado por 2
         const auraGradient = ctx.createRadialGradient(
             this.x, this.y, 0,
             this.x, this.y, auraRadius
         );
-        auraGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-        auraGradient.addColorStop(0.3, 'rgba(240, 240, 240, 0.4)');
-        auraGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
+        auraGradient.addColorStop(0, `rgba(255, 255, 255, ${this.glowIntensity > 0 ? 0.9 : 0.6})`);
+        auraGradient.addColorStop(0.3, `rgba(240, 240, 240, ${this.glowIntensity > 0 ? 0.6 : 0.4})`);
+        auraGradient.addColorStop(0.7, `rgba(255, 255, 255, ${this.glowIntensity > 0 ? 0.3 : 0.1})`);
         auraGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.fillStyle = auraGradient;
@@ -227,7 +242,7 @@ export class Player {
         
         // Corpo principal do personagem
         ctx.shadowColor = CONFIG.COLORS.PLAYER;
-        ctx.shadowBlur = 12 + this.glowIntensity;
+        ctx.shadowBlur = 12 + (this.glowIntensity * 2); // Sombra mais intensa
         ctx.fillStyle = CONFIG.COLORS.PLAYER;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -246,6 +261,17 @@ export class Player {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius * 0.3, 0, Math.PI * 2);
         ctx.fill();
+        
+        // 🎯 INDICADOR VISUAL DE GLOW (DEBUG)
+        if (this.glowIntensity > 0) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 30, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
         
         ctx.restore();
     }

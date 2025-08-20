@@ -38,6 +38,7 @@ class Game {
         console.log('📍 Layout baseado EXATAMENTE na sua imagem PNG');
         console.log(`🗺️ Mundo: ${CONFIG.WORLD.WIDTH}x${CONFIG.WORLD.HEIGHT}`);
         console.log(`👤 Player spawn: ${this.player.x}, ${this.player.y}`);
+        console.log('⚡ Efeitos habilitados - Q e E devem funcionar');
         this.running = true;
         this.gameLoop();
     }
@@ -65,12 +66,14 @@ class Game {
             this.updateUI();
         }
         
-        // Ataques especiais - usar wasJustPressed para não disparar continuamente
+        // 🎯 ATAQUES ESPECIAIS - GARANTINDO QUE FUNCIONEM
         if (this.input.wasJustPressed('q')) {
+            console.log('🌟 PULSO DE LUZ ATIVADO!');
             this.player.lightPulse();
         }
         
         if (this.input.wasJustPressed('e')) {
+            console.log('⚔️ ATAQUE SLASH ATIVADO!');
             this.player.slashAttack();
         }
         
@@ -89,14 +92,16 @@ class Game {
         this.world.drawPlatforms(this.ctx, this.camera, this.player);
         this.world.drawEssences(this.ctx, this.camera, this.animationFrame);
         
-        // Desenhar efeitos (atrás do player)
+        // 🎯 GARANTIR QUE EFEITOS SEJAM DESENHADOS
         this.effects.draw(this.ctx, this.camera);
         
         // Desenhar jogador
         this.player.draw(this.ctx, this.camera);
         
-        // Desenhar minimapa
-        this.drawMinimap();
+        // Desenhar minimapa (simplificado para performance)
+        if (this.animationFrame % 3 === 0) { // Só atualizar a cada 3 frames
+            this.drawMinimap();
+        }
         
         // Atualizar UI
         this.updateUI();
@@ -125,9 +130,12 @@ class Game {
         const scaleX = this.minimapCanvas.width / CONFIG.WORLD.WIDTH;
         const scaleY = this.minimapCanvas.height / CONFIG.WORLD.HEIGHT;
         
+        // 🚀 OTIMIZAÇÃO: Só desenhar algumas plataformas no minimapa
+        const samplePlatforms = this.world.platforms.filter((_, index) => index % 2 === 0);
+        
         // Desenhar plataformas no minimapa
         this.minimapCtx.fillStyle = CONFIG.COLORS.PLATFORM_MID;
-        this.world.platforms.forEach(platform => {
+        samplePlatforms.forEach(platform => {
             const x = platform.x * scaleX;
             const y = platform.y * scaleY;
             const w = Math.max(1, platform.width * scaleX);
@@ -135,7 +143,7 @@ class Game {
             this.minimapCtx.fillRect(x, y, w, h);
         });
         
-        // Desenhar essências no minimapa
+        // Desenhar essências no minimapa (só as não coletadas)
         this.world.essences.forEach(essence => {
             if (!essence.collected) {
                 const x = essence.x * scaleX;
@@ -217,6 +225,7 @@ class Game {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🌟 Carregando LUMINA...');
     console.log('🎯 Versão baseada na imagem PNG do Klaus');
+    console.log('⚡ Sistema de efeitos ativo');
     new Game();
 });
 
@@ -227,3 +236,22 @@ window.addEventListener('keydown', (e) => {
         location.reload();
     }
 });
+
+// 🎯 PERFORMANCE MONITOR (opcional)
+let lastTime = performance.now();
+let frameCount = 0;
+let fps = 60;
+
+function updateFPS() {
+    frameCount++;
+    const now = performance.now();
+    if (now - lastTime >= 1000) {
+        fps = Math.round((frameCount * 1000) / (now - lastTime));
+        console.log(`📊 FPS: ${fps}`);
+        frameCount = 0;
+        lastTime = now;
+    }
+}
+
+// Uncomment para monitorar FPS
+// setInterval(updateFPS, 100);

@@ -9,7 +9,7 @@ export class Camera {
         this.y = 0;
         this.targetX = 0;
         this.targetY = 0;
-        this.smoothing = CONFIG.CAMERA.SMOOTHING;
+        this.smoothing = 0.15; // 🎯 AUMENTADO de 0.06 para 0.15 - câmera mais próxima e responsiva
     }
     
     update(player) {
@@ -21,7 +21,7 @@ export class Camera {
         this.targetX = Math.max(0, Math.min(this.targetX, CONFIG.WORLD.WIDTH - CONFIG.CANVAS.WIDTH));
         this.targetY = Math.max(0, Math.min(this.targetY, CONFIG.WORLD.HEIGHT - CONFIG.CANVAS.HEIGHT));
         
-        // Movimento suave
+        // Movimento suave mais responsivo
         this.x += (this.targetX - this.x) * this.smoothing;
         this.y += (this.targetY - this.y) * this.smoothing;
     }
